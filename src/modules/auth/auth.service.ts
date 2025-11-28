@@ -39,15 +39,15 @@ export class AuthService {
       !tokenRecord.user ||
       !tokenRecord.user.isActive
     ) {
-      throw new UnauthorizedException('Token inv\u00E1lido o expirado');
+      throw new UnauthorizedException('Token inválido o expirado');
     }
 
     if (tokenRecord.token !== dto.token) {
-      throw new UnauthorizedException('Token inv\u00E1lido o expirado');
+      throw new UnauthorizedException('Token inválido o expirado');
     }
 
     if (tokenRecord.expiresAt.getTime() <= Date.now()) {
-      throw new UnauthorizedException('Token inv\u00E1lido o expirado');
+      throw new UnauthorizedException('Token inválido o expirado');
     }
 
     const updateResult = await this.prisma.twoFactorToken.updateMany({
@@ -56,7 +56,7 @@ export class AuthService {
     });
 
     if (updateResult.count === 0) {
-      throw new UnauthorizedException('Token inv\u00E1lido o expirado');
+      throw new UnauthorizedException('Token inválido o expirado');
     }
 
     const payload = { sub: tokenRecord.userId };
