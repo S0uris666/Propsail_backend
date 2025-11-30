@@ -6,36 +6,30 @@ Backend NestJS minimalista enfocado en la historia US-LOGIN-002 del documento `a
 
 - NestJS 11 + TypeScript.
 - Prisma ORM con MariaDB/MySQL.
-- Bcrypt para hash de contraseñas.
-- Servicios auxiliares (`UsersService`, `AuthService`, `SecurityService`, `EmailService`) desacoplados para poder evolucionar el flujo.
 - @nestjs/jwt para emitir el `accessToken` cuando el reto 2FA es válido.
+- Servicios concentrados en `AuthService` + Prisma para resolver exclusivamente la validación 2FA.
 
 ## Estructura del proyecto
 
 ```
 propsail-backend/
-├── prisma/
-│   ├── schema.prisma
-│   └── migrations/
-├── src/
-│   ├── main.ts
-│   ├── app.module.ts
-│   ├── config/
-│   │   └── app-config.module.ts
-│   ├── common/
-│   ├── core/
-│   ├── infra/
-│   │   ├── database/       # PrismaService
-│   │   ├── email/          # EmailService
-│   │   └── security/       # SecurityService
-│   ├── modules/
-│   │   ├── auth/
-│   │   └── users/
-│   └── shared/
-├── test/
-│   ├── e2e/
-│   └── unit/               # pendiente
-└── ...
+|-- prisma/
+|   |-- schema.prisma
+|   `-- migrations/
+|-- src/
+|   |-- main.ts
+|   |-- app.module.ts
+|   |-- config/
+|   |   `-- app-config.module.ts
+|   |-- common/
+|   |-- core/
+|   |-- infra/
+|   |   `-- database/       # PrismaService
+|   `-- modules/
+|       `-- auth/
+`-- test/
+    |-- e2e/
+    `-- unit/               # pendiente
 ```
 
 ## Puesta en marcha
@@ -51,10 +45,9 @@ propsail-backend/
 
 | Método + ruta          | Descripción                                                   | Body esperado                               |
 | ---------------------- | ------------------------------------------------------------- | ------------------------------------------- |
-| `POST /users`          | Crea un usuario con email y username únicos.                  | `{ email, username, fullName?, password }`  |
 | `POST /auth/verify-2fa`| Segundo factor: valida el token y entrega un JWT.             | `{ challengeId, token }`                    |
 
-> Nota: los retos 2FA (`TwoFactorToken`) se asumen creados externamente (semilla, proceso previo o pruebas); este backend sólo implementa la validación del segundo factor.
+> Nota: los retos 2FA (`TwoFactorToken`) se asumen creados externamente (semilla, proceso previo o pruebas) y los usuarios ya existen en la base de datos; este backend s??lo implementa la validaci??n del segundo factor.
 
 ### Detalle del flujo `POST /auth/verify-2fa`
 
@@ -70,3 +63,5 @@ propsail-backend/
 
 - US-LOGIN-002: listo. `/auth/verify-2fa` valida el token, marca el reto como usado y emite `accessToken`.
 - Próximo paso sugerido: agregar generación/reenvío de tokens 2FA (US-LOGIN-001/003) o bloqueo por intentos fallidos (US-LOGIN-004).
+
+
