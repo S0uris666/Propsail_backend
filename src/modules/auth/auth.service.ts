@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/infra/database/prisma.service';
 import { EmailService } from 'src/infra/mail/email.service';
 import { LoginDto } from './dto/login.dto';
@@ -9,6 +10,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly configService: ConfigService,
   ) {}
 
   async login(dto: LoginDto) {
@@ -30,7 +32,12 @@ export class AuthService {
     }
 
     const code = this.generateSixDigitCode();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    const expirationSeconds = this.configService.get<number>(
+      'JWT_EXPIRES_IN_SECONDS',
+      900,
+    );
+    const expiresAt = new Date(Date.now() + expirationSeconds * 1000);
 
     const challenge = await this.prisma.twoFactorToken.create({
       data: {
@@ -46,8 +53,7 @@ export class AuthService {
     return {
       message: 'Código enviado al correo',
       challengeId: challenge.id,
-
-      debugToken: code,
+      token: code,
     };
   }
 
