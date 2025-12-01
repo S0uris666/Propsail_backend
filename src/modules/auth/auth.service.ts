@@ -18,7 +18,7 @@ export class AuthService {
       where: { email: dto.email },
     });
 
-    if (!user) {
+    if (!user || !user.isActive) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
@@ -34,7 +34,7 @@ export class AuthService {
     const code = this.generateSixDigitCode();
 
     const expirationSeconds = this.configService.get<number>(
-      'JWT_EXPIRES_IN_SECONDS',
+      'TWO_FA_EXPIRES_IN_SECONDS',
       900,
     );
     const expiresAt = new Date(Date.now() + expirationSeconds * 1000);
@@ -53,6 +53,7 @@ export class AuthService {
     return {
       message: 'Código enviado al correo',
       challengeId: challenge.id,
+      expiresIn: expirationSeconds,
       token: code,
     };
   }
