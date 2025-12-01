@@ -12,7 +12,6 @@ export interface AuthTokenResponse {
 
 @Injectable()
 export class AuthService {
-  private readonly jwtSecret: string;
   private readonly jwtExpiresInSeconds: number;
 
   constructor(
@@ -20,7 +19,6 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
   ) {
-    this.jwtSecret = this.getRequiredConfig('JWT_SECRET');
     this.jwtExpiresInSeconds = Math.max(
       60,
       this.getNumberConfig('JWT_EXPIRES_IN_SECONDS', 900),
@@ -60,10 +58,8 @@ export class AuthService {
     }
 
     const payload = { sub: tokenRecord.userId };
-    const accessToken = await this.jwtService.signAsync(payload, {
-      secret: this.jwtSecret,
-      expiresIn: this.jwtExpiresInSeconds,
-    });
+
+    const accessToken = await this.jwtService.signAsync(payload);
 
     return {
       accessToken,
@@ -82,13 +78,5 @@ export class AuthService {
       return Number.isNaN(parsed) ? fallback : parsed;
     }
     return fallback;
-  }
-
-  private getRequiredConfig(key: string): string {
-    const value = this.configService.get<string>(key);
-    if (typeof value === 'string' && value.trim().length > 0) {
-      return value.trim();
-    }
-    throw new Error(`La variable de entorno ${key} es obligatoria.`);
   }
 }
