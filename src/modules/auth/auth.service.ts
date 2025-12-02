@@ -7,8 +7,6 @@ import { Prisma } from '@prisma/client';
 
 export interface AuthTokenResponse {
   accessToken: string;
-  expiresIn: number;
-  tokenType: 'Bearer';
 }
 
 type TwoFactorTokenWithUser = Prisma.TwoFactorTokenGetPayload<{
@@ -48,11 +46,7 @@ export class AuthService {
     const payload = { sub: tokenRecord.userId };
     const accessToken = await this.jwtService.signAsync(payload);
 
-    return {
-      accessToken,
-      expiresIn: this.jwtExpiresInSeconds,
-      tokenType: 'Bearer',
-    };
+    return { accessToken };
   }
 
   // Helpers de dominio 2FA
@@ -66,7 +60,7 @@ export class AuthService {
     });
 
     if (!tokenRecord) {
-      this.throwInvalidToken();
+      throw new UnauthorizedException(this.invalidTokenMessage);
     }
 
     return tokenRecord;
@@ -77,19 +71,19 @@ export class AuthService {
     incomingToken: string,
   ): void {
     if (!tokenRecord.user || !tokenRecord.user.isActive) {
-      this.throwInvalidToken();
+      throw new UnauthorizedException(this.invalidTokenMessage);
     }
 
     if (tokenRecord.used) {
-      this.throwInvalidToken();
+      throw new UnauthorizedException(this.invalidTokenMessage);
     }
 
     if (tokenRecord.token !== incomingToken) {
-      this.throwInvalidToken();
+      throw new UnauthorizedException(this.invalidTokenMessage);
     }
 
     if (tokenRecord.expiresAt.getTime() <= Date.now()) {
-      this.throwInvalidToken();
+      throw new UnauthorizedException(this.invalidTokenMessage);
     }
   }
 
@@ -100,12 +94,8 @@ export class AuthService {
     });
 
     if (count === 0) {
-      this.throwInvalidToken();
+      throw new UnauthorizedException(this.invalidTokenMessage);
     }
-  }
-
-  private throwInvalidToken(): never {
-    throw new UnauthorizedException(this.invalidTokenMessage);
   }
 
   // ───────────────────────────
