@@ -25,10 +25,13 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
   ) {
-    this.jwtExpiresInSeconds = Math.max(
-      60,
-      this.getNumberConfig('JWT_EXPIRES_IN_SECONDS', 900),
+    const configuredExpiresIn = this.getNumberConfig(
+      'JWT_EXPIRES_IN_SECONDS',
+      900,
     );
+    const minExpiresIn = this.getNumberConfig('JWT_MIN_EXPIRES_IN_SECONDS', 60);
+
+    this.jwtExpiresInSeconds = Math.max(minExpiresIn, configuredExpiresIn);
   }
 
   async verifyTwoFactor(dto: VerifyTwoFADto): Promise<AuthTokenResponse> {
