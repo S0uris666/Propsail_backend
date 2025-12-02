@@ -2,7 +2,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../infra/database/prisma.service';
-import { Verify2FADto } from './dto/verify-2fa.dto';
+import { VerifyTwoFADto } from './dto/verify-2fa.dto';
+import { Prisma } from '@prisma/client';
 
 export interface AuthTokenResponse {
   accessToken: string;
@@ -10,9 +11,14 @@ export interface AuthTokenResponse {
   tokenType: 'Bearer';
 }
 
+type TwoFactorTokenWithUser = Prisma.TwoFactorTokenGetPayload<{
+  include: { user: true };
+}>;
+
 @Injectable()
 export class AuthService {
   private readonly jwtExpiresInSeconds: number;
+  private readonly invalidTokenMessage = 'Token inválido o expirado';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -25,40 +31,18 @@ export class AuthService {
     );
   }
 
-  async verifyTwoFactor(dto: Verify2FADto): Promise<AuthTokenResponse> {
-    const tokenRecord = await this.prisma.twoFactorToken.findUnique({
-      where: { id: dto.challengeId },
-      include: { user: true },
-    });
+  async verifyTwoFactor(dto: VerifyTwoFADto): Promise<AuthTokenResponse> {
+    const tokenRecord = await this.findTokenWithUser(dto.challengeId);
 
-    if (
-      !tokenRecord ||
-      tokenRecord.used ||
-      !tokenRecord.user ||
-      !tokenRecord.user.isActive
-    ) {
-      throw new UnauthorizedException('Token inválido o expirado');
+    const token = dto.token;
+    if (!token) {
+      throw new UnauthorizedException(this.invalidTokenMessage);
     }
 
-    if (tokenRecord.token !== dto.token) {
-      throw new UnauthorizedException('Token inválido o expirado');
-    }
-
-    if (tokenRecord.expiresAt.getTime() <= Date.now()) {
-      throw new UnauthorizedException('Token inválido o expirado');
-    }
-
-    const updateResult = await this.prisma.twoFactorToken.updateMany({
-      where: { id: tokenRecord.id, used: false },
-      data: { used: true },
-    });
-
-    if (updateResult.count === 0) {
-      throw new UnauthorizedException('Token inválido o expirado');
-    }
+    this.ensureTokenIsValid(tokenRecord, token);
+    await this.markTokenAsUsed(tokenRecord.id);
 
     const payload = { sub: tokenRecord.userId };
-
     const accessToken = await this.jwtService.signAsync(payload);
 
     return {
@@ -68,15 +52,75 @@ export class AuthService {
     };
   }
 
+  // Helpers de dominio 2FA
+
+  private async findTokenWithUser(
+    challengeId: string,
+  ): Promise<TwoFactorTokenWithUser> {
+    const tokenRecord = await this.prisma.twoFactorToken.findUnique({
+      where: { id: challengeId },
+      include: { user: true },
+    });
+
+    if (!tokenRecord) {
+      this.throwInvalidToken();
+    }
+
+    return tokenRecord;
+  }
+
+  private ensureTokenIsValid(
+    tokenRecord: TwoFactorTokenWithUser,
+    incomingToken: string,
+  ): void {
+    if (!tokenRecord.user || !tokenRecord.user.isActive) {
+      this.throwInvalidToken();
+    }
+
+    if (tokenRecord.used) {
+      this.throwInvalidToken();
+    }
+
+    if (tokenRecord.token !== incomingToken) {
+      this.throwInvalidToken();
+    }
+
+    if (tokenRecord.expiresAt.getTime() <= Date.now()) {
+      this.throwInvalidToken();
+    }
+  }
+
+  private async markTokenAsUsed(id: string): Promise<void> {
+    const { count } = await this.prisma.twoFactorToken.updateMany({
+      where: { id, used: false },
+      data: { used: true },
+    });
+
+    if (count === 0) {
+      this.throwInvalidToken();
+    }
+  }
+
+  private throwInvalidToken(): never {
+    throw new UnauthorizedException(this.invalidTokenMessage);
+  }
+
+  // ───────────────────────────
+  // Helpers de configuración
+  // ───────────────────────────
+
   private getNumberConfig(key: string, fallback: number): number {
     const value = this.configService.get<string | number>(key);
+
     if (typeof value === 'number') {
       return value;
     }
+
     if (typeof value === 'string' && value.trim().length > 0) {
       const parsed = Number(value);
       return Number.isNaN(parsed) ? fallback : parsed;
     }
+
     return fallback;
   }
 }

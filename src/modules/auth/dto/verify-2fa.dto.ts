@@ -4,7 +4,7 @@ import { IsNotEmpty, IsString, Matches } from 'class-validator';
 const sanitize = (value: unknown): string | undefined =>
   typeof value === 'string' ? value.trim() : undefined;
 
-export class Verify2FADto {
+export class VerifyTwoFADto {
   @IsString()
   @IsNotEmpty()
   @Transform(({ value }) => sanitize(value))

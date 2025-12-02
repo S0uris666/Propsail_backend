@@ -1,7 +1,7 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import type { AuthTokenResponse } from './auth.service';
-import { Verify2FADto } from './dto/verify-2fa.dto';
+import { VerifyTwoFADto } from './dto/verify-2fa.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -9,7 +9,7 @@ export class AuthController {
 
   @Post('verify-2fa')
   @HttpCode(HttpStatus.OK)
-  verifyTwoFactor(@Body() dto: Verify2FADto): Promise<AuthTokenResponse> {
+  verifyTwoFactor(@Body() dto: VerifyTwoFADto): Promise<AuthTokenResponse> {
     return this.authService.verifyTwoFactor(dto);
   }
 }
